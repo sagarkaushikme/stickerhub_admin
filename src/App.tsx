@@ -139,7 +139,7 @@ export default function App() {
       images: [],
       background: "lemon",
       tag: "Trending",
-      description: "Waterproof vinyl sticker designed for laptops and bottles.",
+      description: "Waterproof sticker designed for laptops and bottles.",
       stock: 100,
       rating: "5.0",
       ratingCount: 0,
