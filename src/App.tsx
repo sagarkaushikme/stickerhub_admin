@@ -693,8 +693,9 @@ export default function App() {
               <div>
                 <label className="font-bold text-slate-700">Description</label>
                 <textarea
-                  rows={3}
+                  rows={6}
                   required
+                  placeholder={"Premium Stickers: short intro...\nDimensions: Fits within 3 x 3 inches\n- Waterproof\n- Scratch resistant"}
                   value={productForm.description}
                   onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                   className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
