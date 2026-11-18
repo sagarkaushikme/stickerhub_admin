@@ -3,6 +3,29 @@ import { ImagePlus, Link2, Loader2, UploadCloud, X } from "lucide-react";
 
 import { uploadImages } from "../api";
 
+const MAX_BYTES = 4.5 * 1024 * 1024; // backend limit is 5 MB per image
+const MAX_FILES = 6;
+const MAX_DIMENSION = 1600;
+
+/** Shrink big photos in the browser (resize + WebP) so they fit the 5 MB limit. */
+async function shrinkImage(file: File): Promise<File> {
+  if (file.type === "image/gif" || !file.type.startsWith("image/")) return file;
+  if (file.size <= 1024 * 1024) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
 /**
  * Multi-image field. Images are stored as an ordered array of URLs.
  * Supports file upload (to backend/R2) and pasting an external URL as a fallback.
@@ -24,9 +47,19 @@ export function ImageUploader({
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setError(null);
+    if (files.length > MAX_FILES) {
+      setError(`Select at most ${MAX_FILES} images at a time.`);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
-      const urls = await uploadImages(Array.from(files));
+      const prepared = await Promise.all(Array.from(files).map(shrinkImage));
+      const tooBig = prepared.find((f) => f.size > MAX_BYTES);
+      if (tooBig) {
+        throw new Error(`"${tooBig.name}" is still over 5 MB after compression. Please use a smaller image.`);
+      }
+      const urls = await uploadImages(prepared);
       onChange([...images, ...urls]);
     } catch (err: any) {
       setError(err.message || "Upload failed");
